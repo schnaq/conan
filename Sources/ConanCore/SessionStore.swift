@@ -10,6 +10,7 @@ public final class SessionStore: ObservableObject {
     @Published public private(set) var sideProjects: [SideProject] = []
     @Published public private(set) var todayReport: WatsonReport?
     @Published public private(set) var projects: [String] = []
+    @Published public private(set) var recentCombos: [ProjectTags] = []
     @Published public private(set) var lastError: String?
 
     public let watsonAvailable: Bool
@@ -113,12 +114,16 @@ public final class SessionStore: ObservableObject {
         guard let watson else { return }
         Task.detached { [weak self] in
             let names = (try? watson.projects()) ?? []
-            await self?.setProjects(names)
+            let frames = (try? watson.recentLog()) ?? []
+            await self?.setProjects(names, combos: RecentCombos.from(frames))
         }
     }
 
     private func setReport(_ report: WatsonReport?) { todayReport = report }
-    private func setProjects(_ names: [String]) { projects = names }
+    private func setProjects(_ names: [String], combos: [ProjectTags]) {
+        projects = names
+        recentCombos = combos
+    }
     private func setError(_ message: String) { lastError = message }
 
     // MARK: - watson writes (serialized inside the client)

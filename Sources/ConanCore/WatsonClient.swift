@@ -20,6 +20,7 @@ public protocol WatsonClient: Sendable {
     func projects() throws -> [String]
     func add(_ command: WatsonAddCommand) throws
     func reportDay() throws -> WatsonReport
+    func recentLog() throws -> [WatsonLogFrame]
 }
 
 /// Real client: shells out to the `watson` binary. All invocations are
@@ -64,6 +65,17 @@ public final class ProcessWatsonClient: WatsonClient, @unchecked Sendable {
         let output = try run(["report", "--day", "--json"])
         guard let data = output.data(using: .utf8) else { throw WatsonError.badOutput }
         return try JSONDecoder().decode(WatsonReport.self, from: data)
+    }
+
+    public func recentLog() throws -> [WatsonLogFrame] {
+        // Last 30 days of frames — enough to surface recently-used project+tag variants.
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let from = formatter.string(from: Date().addingTimeInterval(-30 * 24 * 60 * 60))
+        let output = try run(["log", "--json", "--from", from])
+        guard let data = output.data(using: .utf8) else { throw WatsonError.badOutput }
+        return try JSONDecoder().decode([WatsonLogFrame].self, from: data)
     }
 
     @discardableResult

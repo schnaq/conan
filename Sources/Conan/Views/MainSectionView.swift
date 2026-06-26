@@ -46,10 +46,21 @@ struct MainSectionView: View {
                 TextField("project name", text: $projectInput)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(start)
-                if !store.projects.isEmpty {
+                if !store.recentCombos.isEmpty || !store.projects.isEmpty {
                     Menu {
-                        ForEach(store.projects, id: \.self) { name in
-                            Button(name) { startNamed(name) }
+                        if !store.recentCombos.isEmpty {
+                            Section("Recent") {
+                                ForEach(store.recentCombos) { combo in
+                                    Button(combo.display) { startCombo(combo) }
+                                }
+                            }
+                        }
+                        if !store.projects.isEmpty {
+                            Section("Projects") {
+                                ForEach(store.projects, id: \.self) { name in
+                                    Button(name) { startCombo(ProjectTags(project: name, tags: [])) }
+                                }
+                            }
                         }
                     } label: {
                         Image(systemName: "clock.arrow.circlepath")
@@ -79,6 +90,14 @@ struct MainSectionView: View {
 
     private func startNamed(_ name: String) {
         store.startMain(project: name, tags: Tags.parse(tagsInput))
+        projectInput = ""
+        tagsInput = ""
+    }
+
+    /// Start a remembered project+tags variant from the chooser (its tags are
+    /// authoritative — the free-text tags field is ignored).
+    private func startCombo(_ combo: ProjectTags) {
+        store.startMain(project: combo.project, tags: combo.tags)
         projectInput = ""
         tagsInput = ""
     }

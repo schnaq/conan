@@ -25,3 +25,17 @@ public struct WatsonReport: Codable, Equatable, Sendable {
         public let to: String
     }
 }
+
+/// One frame from `watson log --json` (only the fields Conan needs). Extra keys
+/// (id, stop) are ignored.
+public struct WatsonLogFrame: Codable, Equatable, Sendable {
+    public let project: String
+    public let tags: [String]
+    public let start: String   // ISO 8601; used for recency ordering
+
+    public init(project: String, tags: [String], start: String) {
+        self.project = project
+        self.tags = tags
+        self.start = start
+    }
+}

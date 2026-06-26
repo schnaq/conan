@@ -39,7 +39,8 @@ System Settings → General → Login Items.
 
 ## Usage
 
-1. Click the menu-bar timer. Type a project (or pick a known one), add optional
+1. Click the menu-bar timer. Type a project (or pick a recently-used project/tag
+   variant — or any known project — from the chooser), add optional
    space-separated **tags**, and **Start**.
 2. **Add side projects** with a percentage and optional tags; each shows its live accrued time.
 3. **Stop all** ends the session; **stop** a single side project to close just that one.

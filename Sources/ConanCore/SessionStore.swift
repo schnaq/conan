@@ -43,10 +43,10 @@ public final class SessionStore: ObservableObject {
 
     // MARK: - Main project
 
-    public func startMain(project: String) {
+    public func startMain(project: String, tags: [String] = []) {
         let name = project.trimmingCharacters(in: .whitespacesAndNewlines)
         guard main == nil, !name.isEmpty else { return }
-        main = MainSession(project: name, start: clock())
+        main = MainSession(project: name, start: clock(), tags: tags)
         persist()
     }
 
@@ -62,10 +62,10 @@ public final class SessionStore: ObservableObject {
 
     // MARK: - Side projects
 
-    public func addSide(project: String, percent: Double) {
+    public func addSide(project: String, percent: Double, tags: [String] = []) {
         let name = project.trimmingCharacters(in: .whitespacesAndNewlines)
         guard main != nil, !name.isEmpty, percent > 0 else { return }
-        sideProjects.append(SideProject(name: name, percent: percent, intervalStart: clock()))
+        sideProjects.append(SideProject(name: name, percent: percent, intervalStart: clock(), tags: tags))
         persist()
     }
 

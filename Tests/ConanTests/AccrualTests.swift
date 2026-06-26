@@ -61,6 +61,18 @@ final class AccrualTests: XCTestCase {
         XCTAssertEqual(commands[1].to, "2023-11-14 23:13:20")
     }
 
+    func testFlushCommandsCarryTags() {
+        let main = MainSession(project: "main", start: base, tags: ["meeting"])
+        let side = SideProject(name: "side", percent: 0.5, intervalStart: base, tags: ["review"])
+
+        let commands = Accrual.flushCommands(main: main, sides: [side], at: base.addingTimeInterval(3600), timeZone: utc)
+
+        XCTAssertEqual(commands[0].project, "side")
+        XCTAssertEqual(commands[0].tags, ["review", "conan"])   // user tag + auto conan
+        XCTAssertEqual(commands[1].project, "main")
+        XCTAssertEqual(commands[1].tags, ["meeting"])
+    }
+
     func testFlushDropsTinySide() {
         let main = MainSession(project: "main", start: base)
         // side active only 4s at 10% -> 0.4s -> dropped

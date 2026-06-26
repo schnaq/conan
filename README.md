@@ -15,8 +15,10 @@ tracks lands in watson, so `watson report --day` keeps working as before.
 - Conan **owns all timing** and writes completed frames to watson when intervals close —
   it never calls `watson start`/`stop` and never touches watson's running state. Side
   frames are tagged `+conan` so you can spot them in `watson report`/`watson log`.
-- A live **today** report (from `watson report --day --json`) shows committed time. The
-  in-progress session is written to watson when you stop it.
+- **Tags** set on a project (main or side) pass straight through to watson's frames and
+  show up in the daily summary's per-tag breakdown.
+- A live **today** report (from `watson report --day --json`) shows committed time, broken
+  down by project and tag. The in-progress session is written to watson when you stop it.
 
 ## Requirements
 
@@ -37,10 +39,11 @@ System Settings → General → Login Items.
 
 ## Usage
 
-1. Click the menu-bar timer. Type a project (or pick a known one) and **Start**.
-2. **Add side projects** with a percentage; each shows its live accrued time.
+1. Click the menu-bar timer. Type a project (or pick a known one), add optional
+   space-separated **tags**, and **Start**.
+2. **Add side projects** with a percentage and optional tags; each shows its live accrued time.
 3. **Stop all** ends the session; **stop** a single side project to close just that one.
-4. Open the popover any time to see today's totals.
+4. Open the popover any time to see today's totals, broken down by project and tag.
 
 ## Settings
 

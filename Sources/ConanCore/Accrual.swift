@@ -76,11 +76,13 @@ public enum Accrual {
                 intervalSeconds: t.timeIntervalSince(side.intervalStart),
                 percent: side.percent
             )
+            // User tags + the auto `conan` tag (don't duplicate if typed).
+            let tags = side.tags.contains(sideTag) ? side.tags : side.tags + [sideTag]
             if let command = addCommand(
                 project: side.name,
                 start: side.intervalStart,
                 accruedSeconds: secs,
-                tags: [sideTag],
+                tags: tags,
                 timeZone: timeZone
             ) {
                 commands.append(command)
@@ -96,7 +98,7 @@ public enum Accrual {
                 project: main.project,
                 start: main.start,
                 accruedSeconds: secs,
-                tags: [],
+                tags: main.tags,
                 timeZone: timeZone
             ) {
                 commands.append(command)

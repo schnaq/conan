@@ -1,11 +1,13 @@
 import SwiftUI
 import ConanCore
 
-/// Start/stop the main project; shows its live elapsed time while running.
+/// Start/stop the main project (with optional tags); shows its live elapsed
+/// time and tags while running.
 struct MainSectionView: View {
     @EnvironmentObject private var store: SessionStore
     @EnvironmentObject private var ticker: Ticker
     @State private var projectInput = ""
+    @State private var tagsInput = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -22,6 +24,11 @@ struct MainSectionView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(main.project).font(.headline)
+                if !main.tags.isEmpty {
+                    Text(main.tags.map { "#\($0)" }.joined(separator: " "))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 Text(TimeFormat.clock(store.mainElapsed(asOf: ticker.now)))
                     .font(.system(.title2, design: .monospaced))
                     .contentTransition(.numericText())
@@ -34,24 +41,30 @@ struct MainSectionView: View {
     }
 
     private var idle: some View {
-        HStack(spacing: 6) {
-            TextField("project name", text: $projectInput)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit(start)
-            if !store.projects.isEmpty {
-                Menu {
-                    ForEach(store.projects, id: \.self) { name in
-                        Button(name) { store.startMain(project: name) }
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                TextField("project name", text: $projectInput)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit(start)
+                if !store.projects.isEmpty {
+                    Menu {
+                        ForEach(store.projects, id: \.self) { name in
+                            Button(name) { startNamed(name) }
+                        }
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
                     }
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 28)
                 }
-                .menuStyle(.borderlessButton)
-                .frame(width: 28)
+                Button("Start", action: start)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(trimmed.isEmpty)
             }
-            Button("Start", action: start)
-                .buttonStyle(.borderedProminent)
-                .disabled(trimmed.isEmpty)
+            TextField("tags (optional, space-separated)", text: $tagsInput)
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+                .onSubmit(start)
         }
     }
 
@@ -61,7 +74,12 @@ struct MainSectionView: View {
 
     private func start() {
         guard !trimmed.isEmpty else { return }
-        store.startMain(project: trimmed)
+        startNamed(trimmed)
+    }
+
+    private func startNamed(_ name: String) {
+        store.startMain(project: name, tags: Tags.parse(tagsInput))
         projectInput = ""
+        tagsInput = ""
     }
 }

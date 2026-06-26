@@ -41,6 +41,50 @@ To sign with your own identity: `SIGN_IDENTITY="Apple Development: …" ./script
 Install by copying `Conan.app` to `/Applications`. To start at login, add it under
 System Settings → General → Login Items.
 
+## Distribution (signed + notarized DMG)
+
+`build-app.sh` ad-hoc signs, which only runs cleanly on the build machine. To hand the app
+to other Macs without Gatekeeper warnings, `scripts/release.sh` builds a **universal**
+(arm64 + x86_64), Developer-ID-signed, **notarized**, stapled `dist/Conan.dmg`.
+
+One-time setup (needs a paid Apple Developer Program membership):
+
+1. Create a **Developer ID Application** certificate — Xcode → Settings → Accounts → your
+   team → Manage Certificates → **+** → Developer ID Application. (This is *different* from
+   the "Apple Distribution" cert used for the App Store / iOS.) Find its name with
+   `security find-identity -v -p codesigning | grep "Developer ID Application"`.
+2. Create an app-specific password at appleid.apple.com (or an App Store Connect API key).
+3. Store notary credentials once (Team ID must match the cert):
+
+   ```sh
+   xcrun notarytool store-credentials "conan-notary" \
+     --apple-id "you@example.com" --team-id "TEAMID" --password "app-specific-password"
+   ```
+
+Then build the release:
+
+```sh
+DEV_ID="Developer ID Application: Your Name (TEAMID)" ./scripts/release.sh
+# → dist/Conan.dmg  (signed, notarized, stapled, universal)
+```
+
+Recipients double-click the DMG and drag Conan to Applications — no warnings.
+`SKIP_NOTARIZE=1` produces a signed-but-not-notarized build for local inspection.
+
+### Cutting a versioned GitHub release
+
+`scripts/publish.sh` wraps the whole flow: it auto-detects your installed Developer ID
+identity, stamps the version into `Info.plist`, builds the notarized DMG (via `release.sh`),
+then commits the version bump, tags, pushes, and creates a GitHub release with the DMG
+attached.
+
+```sh
+./scripts/publish.sh 0.2.0      # needs a clean working tree; a leading "v" is fine too
+```
+
+`DRY_RUN=1 ./scripts/publish.sh 0.2.0` builds and previews everything without committing,
+tagging, pushing, or releasing.
+
 ## Usage
 
 1. Click the menu-bar timer. Type a project (or pick a recently-used project/tag

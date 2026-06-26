@@ -47,6 +47,8 @@ struct MenuBarContentView: View {
                         if enabled { Notifier.requestAuthorization() }
                     }
                 HStack {
+                    Text(AppInfo.version)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Button("Quit") { NSApplication.shared.terminate(nil) }
                         .buttonStyle(.borderless)

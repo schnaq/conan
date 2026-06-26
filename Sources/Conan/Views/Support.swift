@@ -44,3 +44,17 @@ struct SectionHeader: View {
             .tracking(0.5)
     }
 }
+
+enum AppInfo {
+    /// App version from the bundle's Info.plist, e.g. "v0.1.0 (2)".
+    /// Falls back to "dev" when running the bare binary (no bundle plist).
+    static var version: String {
+        let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        switch (short, build) {
+        case let (short?, build?): return "v\(short) (\(build))"
+        case let (short?, nil): return "v\(short)"
+        default: return "dev"
+        }
+    }
+}

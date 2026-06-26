@@ -42,6 +42,17 @@ System Settings → General → Login Items.
 3. **Stop all** ends the session; **stop** a single side project to close just that one.
 4. Open the popover any time to see today's totals.
 
+## Settings
+
+In the popover footer:
+
+- **Start at login** — registers Conan as a macOS login item (`SMAppService`).
+- **Remind me when I'm not tracking** — while Conan is running, if you've been
+  active at the Mac for 5 minutes with no project tracked, it posts a
+  notification nudge. It fires once per active streak and re-arms after you
+  start tracking or step away from the Mac. Requires notification permission
+  (requested when you enable it).
+
 ## Data
 
 - Conan stores its in-flight session at `~/Library/Application Support/Conan/state.json`

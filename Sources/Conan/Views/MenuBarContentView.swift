@@ -6,6 +6,7 @@ import ConanCore
 struct MenuBarContentView: View {
     @EnvironmentObject private var store: SessionStore
     @State private var launchAtLogin = false
+    @AppStorage(SessionStore.remindWhenIdleDefaultsKey) private var remindWhenIdle = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -35,19 +36,25 @@ struct MenuBarContentView: View {
             }
 
             Divider()
-            HStack {
+            VStack(alignment: .leading, spacing: 6) {
                 Toggle("Start at login", isOn: $launchAtLogin)
-                    .toggleStyle(.checkbox)
-                    .font(.caption)
                     .onChange(of: launchAtLogin) { newValue in
                         _ = try? LoginItem.setEnabled(newValue)
                         launchAtLogin = LoginItem.isEnabled
                     }
-                Spacer()
-                Button("Quit") { NSApplication.shared.terminate(nil) }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
+                Toggle("Remind me when I'm not tracking", isOn: $remindWhenIdle)
+                    .onChange(of: remindWhenIdle) { enabled in
+                        if enabled { Notifier.requestAuthorization() }
+                    }
+                HStack {
+                    Spacer()
+                    Button("Quit") { NSApplication.shared.terminate(nil) }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .toggleStyle(.checkbox)
+            .font(.caption)
         }
         .padding(14)
         .frame(width: 320)
@@ -55,6 +62,7 @@ struct MenuBarContentView: View {
             store.refreshProjects()
             store.refreshReport()
             launchAtLogin = LoginItem.isEnabled
+            if remindWhenIdle { Notifier.requestAuthorization() }
         }
     }
 

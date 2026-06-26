@@ -18,8 +18,13 @@ public final class SessionStore: ObservableObject {
     private let stateURL: URL
     private let clock: () -> Date
     private var heartbeat: Timer?
+    private var idleReminder = IdleReminder()
 
     private static let heartbeatInterval: TimeInterval = 30
+
+    /// UserDefaults key for the "remind me when not tracking" setting (shared
+    /// with the SwiftUI toggle via `@AppStorage`).
+    public static let remindWhenIdleDefaultsKey = "conan.remindWhenIdle"
 
     public init(
         watson: WatsonClient?,
@@ -178,9 +183,20 @@ public final class SessionStore: ObservableObject {
     private func startHeartbeat() {
         heartbeat = Timer.scheduledTimer(withTimeInterval: Self.heartbeatInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self, self.isRunning else { return }
-                self.persist()
+                guard let self else { return }
+                if self.isRunning { self.persist() }
+                self.checkIdleReminder()
             }
+        }
+    }
+
+    /// Fire a reminder if the user has been active at the Mac for a while with no
+    /// project tracked (opt-in via the "remind me when not tracking" setting).
+    private func checkIdleReminder() {
+        let enabled = UserDefaults.standard.bool(forKey: Self.remindWhenIdleDefaultsKey)
+        let idle = enabled ? SystemActivity.idleSeconds() : 0
+        if idleReminder.tick(now: clock(), idleSeconds: idle, isTracking: isRunning, enabled: enabled) {
+            Notifier.notifyNotTracking()
         }
     }
 }

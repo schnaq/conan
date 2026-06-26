@@ -28,5 +28,9 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Conan — menu-bar time tracker</string>
+	<key>SUFeedURL</key>
+	<string>https://github.com/schnaq/conan/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>RD0nogF/0ZRXMwShvY16CJyw7EnyrhhJemse9IsnXTM=</string>
 </dict>
 </plist>

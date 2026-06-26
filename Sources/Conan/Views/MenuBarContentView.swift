@@ -5,6 +5,7 @@ import ConanCore
 /// Root of the menu-bar popover.
 struct MenuBarContentView: View {
     @EnvironmentObject private var store: SessionStore
+    @EnvironmentObject private var updater: UpdaterController
     @State private var launchAtLogin = false
     @AppStorage(SessionStore.remindWhenIdleDefaultsKey) private var remindWhenIdle = false
 
@@ -46,9 +47,13 @@ struct MenuBarContentView: View {
                     .onChange(of: remindWhenIdle) { enabled in
                         if enabled { Notifier.requestAuthorization() }
                     }
-                HStack {
+                Toggle("Automatically check for updates", isOn: updater.automaticChecksBinding)
+                HStack(spacing: 10) {
                     Text(AppInfo.version)
                         .foregroundStyle(.secondary)
+                    Button("Check for Updates…") { updater.checkForUpdates() }
+                        .buttonStyle(.borderless)
+                        .disabled(!updater.canCheckForUpdates)
                     Spacer()
                     Button("Quit") { NSApplication.shared.terminate(nil) }
                         .buttonStyle(.borderless)

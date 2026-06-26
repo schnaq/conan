@@ -46,10 +46,14 @@ cp "$BIN" "$APP/Contents/MacOS/Conan"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 [ -f "$ROOT/Resources/AppIcon.icns" ] && cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
-# 3. Sign for distribution: hardened runtime + secure timestamp, no entitlements.
+# 3. Embed Sparkle.framework (inside-out signed), then sign the app for
+#    distribution: hardened runtime + secure timestamp, no entitlements.
+echo "==> embedding Sparkle.framework"
+"$ROOT/scripts/embed-sparkle.sh" "$APP" "$DEV_ID" --options runtime --timestamp
+
 echo "==> codesign (Developer ID, hardened runtime)"
 codesign --force --sign "$DEV_ID" --options runtime --timestamp "$APP"
-codesign --verify --strict --verbose=2 "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
 
 # 4. Team-match guard (this machine has multiple teams).
 APP_TEAM="$(codesign -dvvv "$APP" 2>&1 | sed -n 's/^TeamIdentifier=//p')"

@@ -70,12 +70,23 @@ DMG="$ROOT/dist/Conan-$VERSION.dmg"
 cp "$ROOT/dist/Conan.dmg" "$DMG"
 echo "==> artifact: $DMG"
 
+# --- generate + EdDSA-sign the Sparkle appcast (uploaded alongside the DMG) ---
+GEN_APPCAST="$(find "$ROOT/.build/artifacts" -name generate_appcast -type f 2>/dev/null | head -1)"
+[ -n "$GEN_APPCAST" ] || { echo "error: generate_appcast not found — run 'swift build' first" >&2; exit 1; }
+APPCAST_DIR="$(mktemp -d)"
+cp "$DMG" "$APPCAST_DIR/"
+"$GEN_APPCAST" --download-url-prefix "https://github.com/schnaq/conan/releases/download/$TAG/" "$APPCAST_DIR"
+APPCAST="$ROOT/dist/appcast.xml"
+cp "$APPCAST_DIR/appcast.xml" "$APPCAST"
+rm -rf "$APPCAST_DIR"
+echo "==> appcast: $APPCAST"
+
 # --- publish ---
 if [ "$DRY_RUN" = "1" ]; then
     echo "==> DRY_RUN: not committing/tagging/pushing/releasing. Would run:"
     echo "    git commit -m 'chore: release $TAG' -- Resources/Info.plist"
     echo "    git tag $TAG && git push --atomic origin HEAD $TAG"
-    echo "    gh release create $TAG '$DMG' --title 'Conan $TAG' --generate-notes --latest"
+    echo "    gh release create $TAG '$DMG' '$APPCAST' --title 'Conan $TAG' --generate-notes --latest"
     git checkout -- "$PLIST"
     echo "==> reverted Info.plist (dry run)"
     exit 0
@@ -84,5 +95,5 @@ fi
 git commit -qm "chore: release $TAG" -- Resources/Info.plist
 git tag "$TAG"
 git push -q --atomic origin HEAD "$TAG"
-gh release create "$TAG" "$DMG" --title "Conan $TAG" --generate-notes --latest
+gh release create "$TAG" "$DMG" "$APPCAST" --title "Conan $TAG" --generate-notes --latest
 echo "==> published: $(gh release view "$TAG" --json url -q .url)"

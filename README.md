@@ -85,6 +85,23 @@ attached.
 `DRY_RUN=1 ./scripts/publish.sh 0.2.0` builds and previews everything without committing,
 tagging, pushing, or releasing.
 
+### Auto-update (Sparkle)
+
+Conan self-updates via [Sparkle](https://sparkle-project.org). It reads the appcast at
+`https://github.com/schnaq/conan/releases/latest/download/appcast.xml`, and when a newer build
+is published it downloads, verifies (EdDSA + Developer ID), installs, and relaunches — gated by
+the **Automatically check for updates** toggle, with a manual **Check for Updates…** button in
+the popover footer. Sparkle compares the monotonic `CFBundleVersion`.
+
+`publish.sh` handles the release side: it generates an EdDSA-signed `appcast.xml` (via Sparkle's
+`generate_appcast`) pointing at the new DMG and uploads it alongside `Conan-X.Y.Z.dmg`.
+`scripts/embed-sparkle.sh` embeds + inside-out-signs `Sparkle.framework` into the bundle (called
+by both `build-app.sh` and `release.sh` before the app is signed).
+
+One-time setup (already done for this repo): a Sparkle EdDSA key pair was created with
+`generate_keys` — the private key lives in the login keychain (needed by `publish.sh`), and the
+public key is in `Info.plist` as `SUPublicEDKey`.
+
 ## Usage
 
 1. Click the menu-bar timer. Type a project (or pick a recently-used project/tag
@@ -104,6 +121,8 @@ In the popover footer:
   notification nudge. It fires once per active streak and re-arms after you
   start tracking or step away from the Mac. Requires notification permission
   (requested when you enable it).
+- **Automatically check for updates** — Conan checks GitHub for newer releases (via Sparkle)
+  and offers to install them. Use **Check for Updates…** for a manual check.
 
 ## Data
 

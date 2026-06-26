@@ -5,6 +5,7 @@ import ConanCore
 struct ConanApp: App {
     @StateObject private var store: SessionStore
     @StateObject private var ticker = Ticker()
+    @StateObject private var updater = UpdaterController()
 
     init() {
         // Self-contained: reads/writes watson's data files directly, so no
@@ -18,6 +19,7 @@ struct ConanApp: App {
             MenuBarContentView()
                 .environmentObject(store)
                 .environmentObject(ticker)
+                .environmentObject(updater)
         } label: {
             MenuBarLabel()
                 .environmentObject(store)

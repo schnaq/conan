@@ -30,8 +30,12 @@ else
     echo "    (no Resources/AppIcon.icns — run ./scripts/make-icon.sh to generate one)"
 fi
 
+echo "==> embedding Sparkle.framework"
+"$ROOT/scripts/embed-sparkle.sh" "$APP" "$SIGN_IDENTITY"
+
 echo "==> codesign (identity: $SIGN_IDENTITY)"
 codesign --force --sign "$SIGN_IDENTITY" "$APP"
+codesign --verify --deep --strict "$APP"
 
 echo "==> done: $APP"
 echo "    open \"$APP\"        # launch (menu-bar only, no dock icon)"

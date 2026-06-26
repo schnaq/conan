@@ -12,9 +12,10 @@ tracks lands in watson, so `watson report --day` keeps working as before.
   (main keeps its full hour; the side time is extra). 10% → every hour on main adds 6 min.
   Forward-only: a side project accrues only from the moment you start it.
 - **Stop** the main project (stops everything) or any side project individually.
-- Conan **owns all timing** and writes completed frames to watson when intervals close —
-  it never calls `watson start`/`stop` and never touches watson's running state. Side
-  frames are tagged `+conan` so you can spot them in `watson report`/`watson log`.
+- Conan **owns all timing** and appends completed frames straight into watson's `frames`
+  file when intervals close (no `watson` binary or Python needed) — it never tracks a
+  "running" frame in watson's state. Side frames are tagged `+conan` so you can spot them
+  in `watson report`/`watson log`.
 - **Tags** set on a project (main or side) pass straight through to watson's frames and
   show up in the daily summary's per-tag breakdown.
 - A live **today** report (from `watson report --day --json`) shows committed time, broken
@@ -23,7 +24,10 @@ tracks lands in watson, so `watson report --day` keeps working as before.
 ## Requirements
 
 - macOS 13+ (uses SwiftUI `MenuBarExtra`)
-- `watson` on `PATH` — `brew install watson`
+- **No external dependencies.** Conan reads and writes watson's data file
+  (`~/Library/Application Support/watson/frames`) directly, so a `watson` install
+  is optional. If you do have the `watson` CLI, Conan shares its data — `watson
+  report --day` keeps working alongside Conan, and vice versa.
 
 ## Build & run
 
@@ -62,4 +66,5 @@ In the popover footer:
 - Conan stores its in-flight session at `~/Library/Application Support/Conan/state.json`
   (dates as epoch seconds) and replays it on launch after a crash, flushing tracked time
   up to the last 30-second heartbeat.
-- All finished time lives in watson's own store; Conan adds frames via `watson add`.
+- Finished time is appended directly to watson's `frames` file (same JSON format watson
+  uses), so the `watson` CLI reads it natively — no separate watson install required.

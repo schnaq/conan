@@ -7,7 +7,9 @@ struct ConanApp: App {
     @StateObject private var ticker = Ticker()
 
     init() {
-        let watson = ProcessWatsonClient()
+        // Self-contained: reads/writes watson's data files directly, so no
+        // `watson` binary install is required (but stays compatible with one).
+        let watson = FileWatsonClient()
         _store = StateObject(wrappedValue: SessionStore(watson: watson))
     }
 

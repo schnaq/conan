@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+*.xcodeproj
+Conan.app/
+DerivedData/
+.DS_Store

@@ -66,6 +66,7 @@ struct MenuBarContentView: View {
         .padding(14)
         .frame(width: 320)
         .onAppear {
+            store.reconcile()   // reflect a terminal `watson start`/`stop` right away
             store.refreshProjects()
             store.refreshReport()
             launchAtLogin = LoginItem.isEnabled

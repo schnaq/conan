@@ -24,6 +24,11 @@ struct MainSectionView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(main.project).font(.headline)
+                if main.wasAdopted {
+                    Label("started in terminal", systemImage: "terminal")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 if !main.tags.isEmpty {
                     Text(main.tags.map { "#\($0)" }.joined(separator: " "))
                         .font(.caption2)

@@ -5,20 +5,25 @@ public struct MainSession: Codable, Equatable, Sendable {
     public var project: String
     public var start: Date
     public var tags: [String]
+    /// True when this session was adopted from a terminal `watson start` rather
+    /// than started inside Conan (drives a "started in terminal" UI hint).
+    public var wasAdopted: Bool
 
-    public init(project: String, start: Date, tags: [String] = []) {
+    public init(project: String, start: Date, tags: [String] = [], wasAdopted: Bool = false) {
         self.project = project
         self.start = start
         self.tags = tags
+        self.wasAdopted = wasAdopted
     }
 
-    // Custom decode so state.json written by an older version (no `tags`) still
-    // recovers cleanly.
+    // Custom decode so state.json written by an older version (no `tags` /
+    // `wasAdopted`) still recovers cleanly.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         project = try container.decode(String.self, forKey: .project)
         start = try container.decode(Date.self, forKey: .start)
         tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        wasAdopted = try container.decodeIfPresent(Bool.self, forKey: .wasAdopted) ?? false
     }
 }
 

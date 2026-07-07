@@ -47,7 +47,9 @@ public final class SessionStore: ObservableObject {
     public func startMain(project: String, tags: [String] = []) {
         let name = project.trimmingCharacters(in: .whitespacesAndNewlines)
         guard main == nil, !name.isEmpty else { return }
-        main = MainSession(project: name, start: clock(), tags: tags)
+        let session = MainSession(project: name, start: clock(), tags: tags)
+        main = session
+        syncRunningFrame(session)   // let the terminal (`watson status`/`stop`) see it
         persist()
     }
 
@@ -55,6 +57,9 @@ public final class SessionStore: ObservableObject {
     public func stopAll() {
         guard main != nil else { return }
         let commands = Accrual.flushCommands(main: main, sides: sideProjects, at: clock())
+        // Drop watson's baton *before* niling main so a concurrent reconcile can't
+        // re-adopt the frame we're closing, and `watson stop` can't re-write it.
+        dropRunningFrame()
         main = nil
         sideProjects = []
         persist()
@@ -98,6 +103,83 @@ public final class SessionStore: ObservableObject {
 
     public func sideAccrued(_ side: SideProject, asOf t: Date) -> TimeInterval {
         max(0, t.timeIntervalSince(side.intervalStart)) * side.percent
+    }
+
+    // MARK: - Two-way sync with watson's running frame (`state` file)
+
+    /// Reconcile Conan's session with watson's `state` file so a terminal
+    /// `watson start` / `watson stop` is reflected here. Runs on the heartbeat and
+    /// whenever the popover opens. Reads a tiny file synchronously on the main actor.
+    public func reconcile() {
+        guard let watson else { return }
+        let external = try? watson.runningFrame()
+        switch (main, external) {
+        case (nil, nil):
+            return
+        case (nil, .some(let frame)):
+            adopt(frame)
+        case (.some(let current), .some(let frame)):
+            guard !matches(frame, current) else { return }   // already in sync
+            // Terminal stopped `current` and started `frame` between polls.
+            flushSidesForExternalStop(current, defaultStop: clock())
+            adopt(frame)
+        case (.some(let current), nil):
+            // Terminal `watson stop`: watson already wrote the main frame.
+            flushSidesForExternalStop(current, defaultStop: clock())
+        }
+    }
+
+    /// Take over a frame started in the terminal. The main frame is still open, so
+    /// nothing is written and watson's state is left in place (kept in sync).
+    private func adopt(_ frame: WatsonRunningFrame) {
+        main = MainSession(project: frame.project, start: frame.start, tags: frame.tags, wasAdopted: true)
+        persist()
+    }
+
+    /// watson closed the main frame itself (`watson stop`). Flush only the side
+    /// projects — writing the main frame here would double-count it — pinned to the
+    /// stop time watson recorded when we can find it.
+    private func flushSidesForExternalStop(_ main: MainSession, defaultStop: Date) {
+        let stop = externalStop(for: main) ?? defaultStop
+        let sides = sideProjects
+        self.main = nil
+        self.sideProjects = []
+        persist()
+        run(Accrual.flushCommands(main: nil, sides: sides, at: stop))
+        refreshReport()
+    }
+
+    private func externalStop(for main: MainSession) -> Date? {
+        guard let watson else { return nil }
+        return try? watson.stopTime(project: main.project, startEpoch: Int(main.start.timeIntervalSince1970))
+    }
+
+    private func currentRunningFrame() -> WatsonRunningFrame? {
+        guard let watson else { return nil }
+        return try? watson.runningFrame()
+    }
+
+    /// Same project and same start second (compare int epochs to dodge float drift).
+    private func matches(_ frame: WatsonRunningFrame, _ session: MainSession) -> Bool {
+        frame.project == session.project
+            && Int(frame.start.timeIntervalSince1970) == Int(session.start.timeIntervalSince1970)
+    }
+
+    private func syncRunningFrame(_ session: MainSession) {
+        guard let watson else { return }
+        do {
+            try watson.setRunningFrame(
+                WatsonRunningFrame(project: session.project, start: session.start, tags: session.tags)
+            )
+        } catch {
+            lastError = "watson state write failed: \(error)"
+        }
+    }
+
+    private func dropRunningFrame() {
+        guard let watson else { return }
+        do { try watson.clearRunningFrame() }
+        catch { lastError = "watson state clear failed: \(error)" }
     }
 
     // MARK: - watson reads (off the main thread, published when ready)
@@ -169,26 +251,48 @@ public final class SessionStore: ObservableObject {
         return try? decoder.decode(PersistedState.self, from: data)
     }
 
-    /// If a session was open at the last quit/crash, flush all open intervals up
-    /// to the last heartbeat, then start idle — never lose tracked time up to the
-    /// heartbeat, never over-count a long gap.
+    /// Reconcile any session open at the last quit/crash against watson's current
+    /// running frame. The frame in watson's `state` file is the tie-breaker for who
+    /// already closed the main interval, so we never double-count it:
+    ///  - watson frame matches ours → we crashed mid-session: close at the last
+    ///    heartbeat (never count downtime) and drop the baton.
+    ///  - watson idle → `watson stop` ran while we were down: it wrote the main
+    ///    frame, so flush side projects only.
+    ///  - watson frame differs → stopped + restarted while down: flush old sides,
+    ///    adopt the new frame.
+    ///  - no prior session but watson frame present → adopt it.
     private func recoverOnLaunch() {
-        guard let state = loadState(), state.main != nil else { return }
-        let commands = Accrual.flushCommands(
-            main: state.main,
-            sides: state.sideProjects,
-            at: state.lastSeen
-        )
-        main = nil
-        sideProjects = []
-        persist()
-        run(commands)
+        let state = loadState()
+        let recoveredMain = state?.main
+        let recoveredSides = state?.sideProjects ?? []
+        let lastSeen = state?.lastSeen ?? clock()
+        let external = currentRunningFrame()
+
+        switch (recoveredMain, external) {
+        case (nil, nil):
+            return
+        case (nil, .some(let frame)):
+            adopt(frame)
+        case (.some(let recovered), .some(let frame)) where matches(frame, recovered):
+            dropRunningFrame()
+            persist()   // main is still nil here → persists idle
+            run(Accrual.flushCommands(main: recovered, sides: recoveredSides, at: lastSeen))
+        case (.some(let recovered), .some(let frame)):
+            let stop = externalStop(for: recovered) ?? lastSeen
+            run(Accrual.flushCommands(main: nil, sides: recoveredSides, at: stop))
+            adopt(frame)
+        case (.some(let recovered), nil):
+            let stop = externalStop(for: recovered) ?? lastSeen
+            persist()
+            run(Accrual.flushCommands(main: nil, sides: recoveredSides, at: stop))
+        }
     }
 
     private func startHeartbeat() {
         heartbeat = Timer.scheduledTimer(withTimeInterval: Self.heartbeatInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
+                self.reconcile()   // catch terminal watson start/stop within a heartbeat
                 if self.isRunning { self.persist() }
                 self.checkIdleReminder()
             }

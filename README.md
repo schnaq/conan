@@ -13,9 +13,13 @@ tracks lands in watson, so `watson report --day` keeps working as before.
   Forward-only: a side project accrues only from the moment you start it.
 - **Stop** the main project (stops everything) or any side project individually.
 - Conan **owns all timing** and appends completed frames straight into watson's `frames`
-  file when intervals close (no `watson` binary or Python needed) — it never tracks a
-  "running" frame in watson's state. Side frames are tagged `+conan` so you can spot them
-  in `watson report`/`watson log`.
+  file when intervals close (no `watson` binary or Python needed). Side frames are tagged
+  `+conan` so you can spot them in `watson report`/`watson log`.
+- **Terminal-aware:** Conan keeps watson's running-frame `state` in sync, so
+  `watson start <project>` in the terminal shows up in Conan (marked *started in terminal*)
+  and `watson stop` stops it there too. The running frame is closed **exactly once** — by
+  whoever stops it, Conan or the CLI — so time is never double-counted. While a session is
+  running the frame is "taken", so a second terminal `watson start` is refused until you stop.
 - **Tags** set on a project (main or side) pass straight through to watson's frames and
   show up in the daily summary's per-tag breakdown.
 - A live **today** report (from `watson report --day --json`) shows committed time, broken
@@ -111,6 +115,9 @@ public key is in `Info.plist` as `SUPublicEDKey`.
 3. **Stop all** ends the session; **stop** a single side project to close just that one.
 4. Open the popover any time to see today's totals, broken down by project and tag.
 
+You can also `watson start`/`watson stop` from the terminal — Conan picks the change up
+automatically (instantly when you open the popover, otherwise within ~30 s).
+
 ## Settings
 
 In the popover footer:
@@ -129,5 +136,9 @@ In the popover footer:
 - Conan stores its in-flight session at `~/Library/Application Support/Conan/state.json`
   (dates as epoch seconds) and replays it on launch after a crash, flushing tracked time
   up to the last 30-second heartbeat.
+- The running session is mirrored into watson's own `state` file
+  (`~/Library/Application Support/watson/state`) to keep the `watson` CLI in sync. On launch
+  Conan reconciles the two: if `watson stop` ran while Conan was closed, the main frame
+  watson already wrote is **not** re-counted (only side-project time is flushed).
 - Finished time is appended directly to watson's `frames` file (same JSON format watson
   uses), so the `watson` CLI reads it natively — no separate watson install required.

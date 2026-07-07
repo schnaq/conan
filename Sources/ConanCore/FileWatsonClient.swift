@@ -11,6 +11,7 @@ import Foundation
 /// frames carrying that tag).
 public final class FileWatsonClient: WatsonClient, @unchecked Sendable {
     private let framesURL: URL
+    private let stateURL: URL
     private let timeZone: TimeZone
     private let now: () -> Date
     private let queue = DispatchQueue(label: "com.schnaq.conan.filewatson")
@@ -22,6 +23,7 @@ public final class FileWatsonClient: WatsonClient, @unchecked Sendable {
     ) {
         let directory = dataDirectory ?? FileWatsonClient.defaultDataDirectory()
         self.framesURL = directory.appendingPathComponent("frames")
+        self.stateURL = directory.appendingPathComponent("state")
         self.timeZone = timeZone
         self.now = now
     }
@@ -106,6 +108,55 @@ public final class FileWatsonClient: WatsonClient, @unchecked Sendable {
             time: total,
             timespan: WatsonReport.Timespan(from: iso.string(from: dayStart), to: iso.string(from: dayEnd))
         )
+    }
+
+    // MARK: - Running frame (watson `state` file)
+
+    public func runningFrame() throws -> WatsonRunningFrame? {
+        try queue.sync {
+            guard let data = try? Data(contentsOf: stateURL), !data.isEmpty,
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let project = object["project"] as? String, !project.isEmpty,
+                  let start = object["start"] as? NSNumber
+            else { return nil }
+            let tags = (object["tags"] as? [String]) ?? []
+            return WatsonRunningFrame(
+                project: project,
+                start: Date(timeIntervalSince1970: start.doubleValue),
+                tags: tags
+            )
+        }
+    }
+
+    public func setRunningFrame(_ frame: WatsonRunningFrame) throws {
+        try queue.sync {
+            try writeState([
+                "project": frame.project,
+                "start": Int(frame.start.timeIntervalSince1970),   // watson stores int epochs
+                "tags": frame.tags,
+            ])
+        }
+    }
+
+    public func clearRunningFrame() throws {
+        try queue.sync { try writeState([:]) }   // watson's idle state is `{}`
+    }
+
+    public func stopTime(project: String, startEpoch: Int) throws -> Date? {
+        let frames = try queue.sync { try loadFrames() }
+        return frames
+            .filter { $0.project == project && Int($0.start.timeIntervalSince1970) == startEpoch }
+            .max(by: { $0.stop < $1.stop })?
+            .stop
+    }
+
+    private func writeState(_ object: [String: Any]) throws {
+        try FileManager.default.createDirectory(
+            at: stateURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let data = try JSONSerialization.data(withJSONObject: object)
+        try data.write(to: stateURL, options: .atomic)
     }
 
     // MARK: - Frame I/O

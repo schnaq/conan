@@ -26,6 +26,22 @@ public struct WatsonReport: Codable, Equatable, Sendable {
     }
 }
 
+/// Watson's currently-running frame — the contents of watson's `state` file
+/// (`{project, start, tags}`; an empty `{}` means nothing is running). Conan
+/// reads this to reflect a terminal `watson start`, and writes it so the terminal
+/// sees Conan's own session and `watson stop` can close it.
+public struct WatsonRunningFrame: Equatable, Sendable {
+    public let project: String
+    public let start: Date
+    public let tags: [String]
+
+    public init(project: String, start: Date, tags: [String] = []) {
+        self.project = project
+        self.start = start
+        self.tags = tags
+    }
+}
+
 /// One frame from `watson log --json` (only the fields Conan needs). Extra keys
 /// (id, stop) are ignored.
 public struct WatsonLogFrame: Codable, Equatable, Sendable {

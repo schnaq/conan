@@ -113,7 +113,7 @@ public final class FileWatsonClient: WatsonClient, @unchecked Sendable {
     // MARK: - Running frame (watson `state` file)
 
     public func runningFrame() throws -> WatsonRunningFrame? {
-        try queue.sync {
+        queue.sync {
             guard let data = try? Data(contentsOf: stateURL), !data.isEmpty,
                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let project = object["project"] as? String, !project.isEmpty,

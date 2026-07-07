@@ -95,6 +95,71 @@ final class FileWatsonClientTests: XCTestCase {
         XCTAssertEqual(log.first?.tags, ["t"])
     }
 
+    // MARK: - Running-frame (watson `state` file)
+
+    func testRunningFrameNilWhenNoState() throws {
+        XCTAssertNil(try makeClient().runningFrame())
+    }
+
+    func testRunningFrameNilWhenIdleState() throws {
+        try Data("{}".utf8).write(to: tempDir.appendingPathComponent("state"))
+        XCTAssertNil(try makeClient().runningFrame())
+    }
+
+    func testRunningFrameNilWhenMalformed() throws {
+        try Data("not json".utf8).write(to: tempDir.appendingPathComponent("state"))
+        XCTAssertNil(try makeClient().runningFrame())
+    }
+
+    func testReadsWatsonStartedFrame() throws {
+        let start = Int(dayStart.timeIntervalSince1970) + 8 * 3600
+        let state: [String: Any] = ["project": "alpha", "start": start, "tags": ["meeting"]]
+        try JSONSerialization.data(withJSONObject: state)
+            .write(to: tempDir.appendingPathComponent("state"))
+
+        let frame = try makeClient().runningFrame()
+        XCTAssertEqual(frame?.project, "alpha")
+        XCTAssertEqual(frame?.start, Date(timeIntervalSince1970: TimeInterval(start)))
+        XCTAssertEqual(frame?.tags, ["meeting"])
+    }
+
+    func testSetAndClearRunningFrameRoundTrip() throws {
+        let client = makeClient()
+        let start = dayStart.addingTimeInterval(9 * 3600)
+        try client.setRunningFrame(WatsonRunningFrame(project: "p", start: start, tags: ["x"]))
+
+        let frame = try client.runningFrame()
+        XCTAssertEqual(frame?.project, "p")
+        XCTAssertEqual(frame?.start, Date(timeIntervalSince1970: TimeInterval(Int(start.timeIntervalSince1970))))
+        XCTAssertEqual(frame?.tags, ["x"])
+
+        try client.clearRunningFrame()
+        XCTAssertNil(try client.runningFrame())
+    }
+
+    func testSetRunningFrameWritesWatsonStateFormat() throws {
+        let client = makeClient()
+        let start = dayStart.addingTimeInterval(9 * 3600)
+        try client.setRunningFrame(WatsonRunningFrame(project: "p", start: start, tags: ["x"]))
+
+        let data = try Data(contentsOf: tempDir.appendingPathComponent("state"))
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(obj["project"] as? String, "p")
+        XCTAssertEqual(obj["start"] as? Int, Int(start.timeIntervalSince1970))   // integer epoch, watson style
+        XCTAssertEqual(obj["tags"] as? [String], ["x"])
+    }
+
+    func testStopTimeFindsMatchingClosedFrame() throws {
+        let start = Int(dayStart.timeIntervalSince1970) + 8 * 3600
+        let stop = start + 3600
+        try writeRawFrames([[start, stop, "alpha", "id1", [], start]])
+
+        let found = try makeClient().stopTime(project: "alpha", startEpoch: start)
+        XCTAssertEqual(found, Date(timeIntervalSince1970: TimeInterval(stop)))
+        XCTAssertNil(try makeClient().stopTime(project: "alpha", startEpoch: start + 1))
+        XCTAssertNil(try makeClient().stopTime(project: "other", startEpoch: start))
+    }
+
     /// Compatibility proof: a real `watson` CLI must read frames we wrote.
     /// Skipped where watson isn't installed.
     func testWrittenFramesReadableByWatsonCLI() throws {

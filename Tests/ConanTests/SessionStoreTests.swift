@@ -28,6 +28,10 @@ private final class MockWatson: WatsonClient, @unchecked Sendable {
         WatsonReport(projects: [], time: 0, timespan: .init(from: "", to: ""))
     }
 
+    func reportWeek(containing reference: Date) throws -> WatsonReport {
+        WatsonReport(projects: [], time: 0, timespan: .init(from: "", to: ""))
+    }
+
     func add(_ command: WatsonAddCommand) throws {
         lock.lock(); _adds.append(command); lock.unlock()
     }

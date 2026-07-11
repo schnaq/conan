@@ -8,6 +8,7 @@ public protocol WatsonClient: Sendable {
     func projects() throws -> [String]
     func add(_ command: WatsonAddCommand) throws
     func reportDay() throws -> WatsonReport
+    func reportWeek(containing reference: Date) throws -> WatsonReport
     func recentLog() throws -> [WatsonLogFrame]
 
     // MARK: Running frame (watson's `state` file) — two-way sync with the CLI.

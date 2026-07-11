@@ -9,6 +9,9 @@ public final class SessionStore: ObservableObject {
     @Published public private(set) var main: MainSession?
     @Published public private(set) var sideProjects: [SideProject] = []
     @Published public private(set) var todayReport: WatsonReport?
+    @Published public private(set) var weekReport: WatsonReport?
+    /// 0 = current week, -1 = previous week, … (never positive).
+    @Published public private(set) var weekOffset: Int = 0
     @Published public private(set) var projects: [String] = []
     @Published public private(set) var recentCombos: [ProjectTags] = []
     @Published public private(set) var lastError: String?
@@ -192,6 +195,24 @@ public final class SessionStore: ObservableObject {
         }
     }
 
+    public func refreshWeekReport() {
+        guard let watson else { return }
+        let reference = clock().addingTimeInterval(TimeInterval(weekOffset) * 7 * 86_400)
+        Task.detached { [weak self] in
+            let report = try? watson.reportWeek(containing: reference)
+            await self?.setWeekReport(report)
+        }
+    }
+
+    /// Navigate the week report; clamped so it never goes past the current week.
+    public func shiftWeek(by delta: Int) {
+        let shifted = min(0, weekOffset + delta)
+        guard shifted != weekOffset else { return }
+        weekOffset = shifted
+        weekReport = nil   // don't show the old week while the new one loads
+        refreshWeekReport()
+    }
+
     public func refreshProjects() {
         guard let watson else { return }
         Task.detached { [weak self] in
@@ -202,6 +223,7 @@ public final class SessionStore: ObservableObject {
     }
 
     private func setReport(_ report: WatsonReport?) { todayReport = report }
+    private func setWeekReport(_ report: WatsonReport?) { weekReport = report }
     private func setProjects(_ names: [String], combos: [ProjectTags]) {
         projects = names
         recentCombos = combos

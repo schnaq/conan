@@ -114,6 +114,8 @@ public key is in `Info.plist` as `SUPublicEDKey`.
 2. **Add side projects** with a percentage and optional tags; each shows its live accrued time.
 3. **Stop all** ends the session; **stop** a single side project to close just that one.
 4. Open the popover any time to see today's totals, broken down by project and tag.
+5. Switch the report to **Week** for the ISO week's totals (Monday-start, ‹ › to go
+   back through past weeks) — handy for transferring hours into other tools.
 
 You can also `watson start`/`watson stop` from the terminal — Conan picks the change up
 automatically (instantly when you open the popover, otherwise within ~30 s).

@@ -7,6 +7,7 @@ struct MenuBarContentView: View {
     @EnvironmentObject private var store: SessionStore
     @EnvironmentObject private var updater: UpdaterController
     @State private var launchAtLogin = false
+    @State private var reportRange: ReportRange = .today
     @AppStorage(SessionStore.remindWhenIdleDefaultsKey) private var remindWhenIdle = false
 
     var body: some View {
@@ -26,7 +27,17 @@ struct MenuBarContentView: View {
                     SideProjectsView()
                 }
                 Divider()
-                ReportView()
+                Picker("", selection: $reportRange) {
+                    Text("Today").tag(ReportRange.today)
+                    Text("Week").tag(ReportRange.week)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                if reportRange == .today {
+                    ReportView()
+                } else {
+                    WeekReportView()
+                }
             }
 
             if let error = store.lastError {
@@ -72,6 +83,10 @@ struct MenuBarContentView: View {
             launchAtLogin = LoginItem.isEnabled
             if remindWhenIdle { Notifier.requestAuthorization() }
         }
+    }
+
+    private enum ReportRange {
+        case today, week
     }
 
     private var watsonMissing: some View {

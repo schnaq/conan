@@ -69,21 +69,37 @@ public final class FileWatsonClient: WatsonClient, @unchecked Sendable {
     }
 
     public func reportDay() throws -> WatsonReport {
-        let frames = try queue.sync { try loadFrames() }
-
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let dayStart = calendar.startOfDay(for: now())
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86_400)
+        return try report(from: dayStart, to: dayEnd)
+    }
+
+    /// Weekly totals for the ISO week (Monday 00:00 → next Monday 00:00 in the
+    /// client's time zone) containing `reference`.
+    public func reportWeek(containing reference: Date) throws -> WatsonReport {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = timeZone
+        let week = calendar.dateInterval(of: .weekOfYear, for: reference)
+            ?? DateInterval(start: calendar.startOfDay(for: reference), duration: 7 * 86_400)
+        return try report(from: week.start, to: week.end)
+    }
+
+    /// Watson-style clip-and-sum aggregation over an arbitrary
+    /// `[rangeStart, rangeEnd)` window: each frame is clipped to the range and
+    /// the clipped duration summed per project (and per tag).
+    private func report(from rangeStart: Date, to rangeEnd: Date) throws -> WatsonReport {
+        let frames = try queue.sync { try loadFrames() }
 
         struct Aggregate { var time: Double = 0; var tags: [String: Double] = [:] }
         var byProject: [String: Aggregate] = [:]
         var total: Double = 0
 
         for frame in frames {
-            guard frame.start < dayEnd, frame.stop > dayStart else { continue }   // overlaps today
-            let clippedStart = max(frame.start, dayStart)
-            let clippedStop = min(frame.stop, dayEnd)
+            guard frame.start < rangeEnd, frame.stop > rangeStart else { continue }   // overlaps the range
+            let clippedStart = max(frame.start, rangeStart)
+            let clippedStop = min(frame.stop, rangeEnd)
             let duration = clippedStop.timeIntervalSince(clippedStart)
             guard duration > 0 else { continue }
 
@@ -106,7 +122,7 @@ public final class FileWatsonClient: WatsonClient, @unchecked Sendable {
         return WatsonReport(
             projects: projects,
             time: total,
-            timespan: WatsonReport.Timespan(from: iso.string(from: dayStart), to: iso.string(from: dayEnd))
+            timespan: WatsonReport.Timespan(from: iso.string(from: rangeStart), to: iso.string(from: rangeEnd))
         )
     }
 

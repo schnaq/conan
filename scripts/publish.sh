@@ -70,6 +70,10 @@ DMG="$ROOT/dist/Conan-$VERSION.dmg"
 cp "$ROOT/dist/Conan.dmg" "$DMG"
 echo "==> artifact: $DMG"
 
+# --- stamp the Homebrew cask (included in the release commit; tap sync later) ---
+CASK="$ROOT/packaging/homebrew/conan.rb"
+"$ROOT/scripts/update-cask.sh" "$VERSION" "$DMG" --render-only
+
 # --- generate + EdDSA-sign the Sparkle appcast (uploaded alongside the DMG) ---
 GEN_APPCAST="$(find "$ROOT/.build/artifacts" -name generate_appcast -type f 2>/dev/null | head -1)"
 [ -n "$GEN_APPCAST" ] || { echo "error: generate_appcast not found — run 'swift build' first" >&2; exit 1; }
@@ -84,16 +88,21 @@ echo "==> appcast: $APPCAST"
 # --- publish ---
 if [ "$DRY_RUN" = "1" ]; then
     echo "==> DRY_RUN: not committing/tagging/pushing/releasing. Would run:"
-    echo "    git commit -m 'chore: release $TAG' -- Resources/Info.plist"
+    echo "    git commit -m 'chore: release $TAG' -- Resources/Info.plist packaging/homebrew/conan.rb"
     echo "    git tag $TAG && git push --atomic origin HEAD $TAG"
     echo "    gh release create $TAG '$DMG' '$APPCAST' --title 'Conan $TAG' --generate-notes --latest"
-    git checkout -- "$PLIST"
-    echo "==> reverted Info.plist (dry run)"
+    echo "    ./scripts/update-cask.sh $VERSION '$DMG'   # sync cask into the homebrew tap"
+    git checkout -- "$PLIST" "$CASK"
+    echo "==> reverted Info.plist + cask (dry run)"
     exit 0
 fi
 
-git commit -qm "chore: release $TAG" -- Resources/Info.plist
+git commit -qm "chore: release $TAG" -- Resources/Info.plist packaging/homebrew/conan.rb
 git tag "$TAG"
 git push -q --atomic origin HEAD "$TAG"
 gh release create "$TAG" "$DMG" "$APPCAST" --title "Conan $TAG" --generate-notes --latest
 echo "==> published: $(gh release view "$TAG" --json url -q .url)"
+
+# --- sync the cask into the homebrew tap (never fails the release) ---
+"$ROOT/scripts/update-cask.sh" "$VERSION" "$DMG" \
+    || echo "==> warning: cask tap sync failed — run scripts/update-cask.sh $VERSION '$DMG' manually"

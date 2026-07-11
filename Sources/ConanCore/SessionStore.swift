@@ -8,6 +8,7 @@ import Combine
 public final class SessionStore: ObservableObject {
     @Published public private(set) var main: MainSession?
     @Published public private(set) var sideProjects: [SideProject] = []
+    @Published public private(set) var lastSetup: SessionSetup?
     @Published public private(set) var todayReport: WatsonReport?
     @Published public private(set) var projects: [String] = []
     @Published public private(set) var recentCombos: [ProjectTags] = []
@@ -53,17 +54,29 @@ public final class SessionStore: ObservableObject {
         persist()
     }
 
-    /// Stop the main project and every side project at once.
+    /// Stop the main project and every side project at once. Remembers the
+    /// stopped setup so "Resume all" can restart it.
     public func stopAll() {
-        guard main != nil else { return }
+        guard let main else { return }
+        lastSetup = SessionSetup(main: main, sides: sideProjects)
         let commands = Accrual.flushCommands(main: main, sides: sideProjects, at: clock())
         // Drop watson's baton *before* niling main so a concurrent reconcile can't
         // re-adopt the frame we're closing, and `watson stop` can't re-write it.
         dropRunningFrame()
-        main = nil
+        self.main = nil
         sideProjects = []
         persist()
         run(commands)
+    }
+
+    /// Restart the exact setup that was running at the last "Stop all" (or
+    /// interrupted by a quit/crash), with fresh timestamps.
+    public func resumeAll() {
+        guard main == nil, let setup = lastSetup else { return }
+        startMain(project: setup.mainProject, tags: setup.mainTags)
+        for side in setup.sides {
+            addSide(project: side.name, percent: side.percent, tags: side.tags)
+        }
     }
 
     // MARK: - Side projects
@@ -140,6 +153,7 @@ public final class SessionStore: ObservableObject {
     /// projects — writing the main frame here would double-count it — pinned to the
     /// stop time watson recorded when we can find it.
     private func flushSidesForExternalStop(_ main: MainSession, defaultStop: Date) {
+        lastSetup = SessionSetup(main: main, sides: sideProjects)   // resumable like any other stop
         let stop = externalStop(for: main) ?? defaultStop
         let sides = sideProjects
         self.main = nil
@@ -229,7 +243,7 @@ public final class SessionStore: ObservableObject {
     }
 
     private func persist() {
-        let state = PersistedState(main: main, sideProjects: sideProjects, lastSeen: clock())
+        let state = PersistedState(main: main, sideProjects: sideProjects, lastSeen: clock(), lastSetup: lastSetup)
         do {
             try FileManager.default.createDirectory(
                 at: stateURL.deletingLastPathComponent(),
@@ -267,6 +281,13 @@ public final class SessionStore: ObservableObject {
         let recoveredSides = state?.sideProjects ?? []
         let lastSeen = state?.lastSeen ?? clock()
         let external = currentRunningFrame()
+
+        lastSetup = state?.lastSetup
+        // An interrupted setup supersedes any older snapshot, so "Resume all"
+        // restores what was actually running when the session ended.
+        if let recovered = recoveredMain {
+            lastSetup = SessionSetup(main: recovered, sides: recoveredSides)
+        }
 
         switch (recoveredMain, external) {
         case (nil, nil):

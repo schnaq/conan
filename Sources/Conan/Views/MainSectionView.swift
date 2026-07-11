@@ -81,7 +81,22 @@ struct MainSectionView: View {
                 .textFieldStyle(.roundedBorder)
                 .font(.caption)
                 .onSubmit(start)
+            if let setup = store.lastSetup {
+                Button {
+                    store.resumeAll()
+                } label: {
+                    Label(resumeTitle(setup), systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+                .font(.caption)
+            }
         }
+    }
+
+    private func resumeTitle(_ setup: SessionSetup) -> String {
+        let sides = setup.sides.count
+        let suffix = sides == 0 ? "" : " + \(sides) side\(sides == 1 ? "" : "s")"
+        return "Resume \(setup.mainProject)\(suffix)"
     }
 
     private var trimmed: String {

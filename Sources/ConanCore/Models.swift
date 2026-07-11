@@ -56,16 +56,53 @@ public struct SideProject: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
+/// The setup that was running when "Stop all" was last pressed (or when an
+/// interrupted session was recovered), so it can be restarted with fresh
+/// timestamps via "Resume all".
+public struct SessionSetup: Codable, Equatable, Sendable {
+    public struct Side: Codable, Equatable, Sendable {
+        public var name: String
+        public var percent: Double
+        public var tags: [String]
+
+        public init(name: String, percent: Double, tags: [String] = []) {
+            self.name = name
+            self.percent = percent
+            self.tags = tags
+        }
+    }
+
+    public var mainProject: String
+    public var mainTags: [String]
+    public var sides: [Side]
+
+    public init(mainProject: String, mainTags: [String], sides: [Side]) {
+        self.mainProject = mainProject
+        self.mainTags = mainTags
+        self.sides = sides
+    }
+
+    public init(main: MainSession, sides: [SideProject]) {
+        self.mainProject = main.project
+        self.mainTags = main.tags
+        self.sides = sides.map { Side(name: $0.name, percent: $0.percent, tags: $0.tags) }
+    }
+}
+
 /// Everything persisted to `state.json` for crash recovery. Dates are encoded as
 /// epoch seconds (the coder sets `.secondsSince1970`).
 public struct PersistedState: Codable, Equatable, Sendable {
     public var main: MainSession?
     public var sideProjects: [SideProject]
     public var lastSeen: Date
+    // Optional so state.json written by older versions still decodes (missing
+    // key → nil via synthesized Codable).
+    public var lastSetup: SessionSetup?
 
-    public init(main: MainSession?, sideProjects: [SideProject], lastSeen: Date) {
+    public init(main: MainSession?, sideProjects: [SideProject], lastSeen: Date, lastSetup: SessionSetup? = nil) {
         self.main = main
         self.sideProjects = sideProjects
         self.lastSeen = lastSeen
+        self.lastSetup = lastSetup
     }
 }

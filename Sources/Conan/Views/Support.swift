@@ -14,26 +14,6 @@ final class Ticker: ObservableObject {
     }
 }
 
-enum TimeFormat {
-    /// "1:23:45" (with hours) or "23:45" for a live clock display.
-    static func clock(_ seconds: TimeInterval) -> String {
-        let total = max(0, Int(seconds.rounded()))
-        let hours = total / 3600, minutes = (total % 3600) / 60, secs = total % 60
-        return hours > 0
-            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
-            : String(format: "%d:%02d", minutes, secs)
-    }
-
-    /// Compact "1h 23m" / "23m" / "45s" for the report.
-    static func human(_ seconds: TimeInterval) -> String {
-        let total = max(0, Int(seconds.rounded()))
-        let hours = total / 3600, minutes = (total % 3600) / 60, secs = total % 60
-        if hours > 0 { return "\(hours)h \(minutes)m" }
-        if minutes > 0 { return "\(minutes)m" }
-        return "\(secs)s"
-    }
-}
-
 struct SectionHeader: View {
     let title: String
     init(_ title: String) { self.title = title }

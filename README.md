@@ -33,6 +33,22 @@ tracks lands in watson, so `watson report --day` keeps working as before.
   is optional. If you do have the `watson` CLI, Conan shares its data — `watson
   report --day` keeps working alongside Conan, and vice versa.
 
+## Install via Homebrew
+
+> Available once the [`schnaq/homebrew-tap`](https://github.com/schnaq/homebrew-tap) repo
+> exists — the cask lives in this repo at `packaging/homebrew/conan.rb` and is synced
+> there on each release.
+
+```sh
+brew tap schnaq/tap
+brew install --cask conan
+```
+
+Note: homebrew-core ships a `conan` *formula* (the C++ package manager). The cask is
+namespaced by the tap, so `brew install --cask schnaq/tap/conan` always resolves
+unambiguously. Conan self-updates via Sparkle (`auto_updates true`), so `brew upgrade`
+leaves it alone unless you pass `--greedy`.
+
 ## Build & run
 
 ```sh
@@ -85,6 +101,12 @@ attached.
 ```sh
 ./scripts/publish.sh 0.2.0      # needs a clean working tree; a leading "v" is fine too
 ```
+
+It also stamps the new version + DMG sha256 into the Homebrew cask
+(`packaging/homebrew/conan.rb`, part of the release commit) and, after the GitHub release
+is up, syncs the cask into a local clone of `schnaq/homebrew-tap` and pushes it (looked
+for at `../homebrew-tap`, override with `TAP_DIR=…`). No tap clone present → the release
+still succeeds and `scripts/update-cask.sh` prints the manual steps.
 
 `DRY_RUN=1 ./scripts/publish.sh 0.2.0` builds and previews everything without committing,
 tagging, pushing, or releasing.

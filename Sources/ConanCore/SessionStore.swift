@@ -27,6 +27,10 @@ public final class SessionStore: ObservableObject {
     /// with the SwiftUI toggle via `@AppStorage`).
     public static let remindWhenIdleDefaultsKey = "conan.remindWhenIdle"
 
+    /// UserDefaults key for hiding the ticking clock in the menu bar (shared
+    /// with the SwiftUI toggle via `@AppStorage`).
+    public static let hideMenuBarClockDefaultsKey = "conan.hideMenuBarClock"
+
     public init(
         watson: WatsonClient?,
         stateURL: URL = SessionStore.defaultStateURL(),

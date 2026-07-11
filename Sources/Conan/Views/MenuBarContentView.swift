@@ -8,6 +8,7 @@ struct MenuBarContentView: View {
     @EnvironmentObject private var updater: UpdaterController
     @State private var launchAtLogin = false
     @AppStorage(SessionStore.remindWhenIdleDefaultsKey) private var remindWhenIdle = false
+    @AppStorage(SessionStore.hideMenuBarClockDefaultsKey) private var hideClock = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -47,6 +48,7 @@ struct MenuBarContentView: View {
                     .onChange(of: remindWhenIdle) { enabled in
                         if enabled { Notifier.requestAuthorization() }
                     }
+                Toggle("Hide timer in menu bar", isOn: $hideClock)
                 Toggle("Automatically check for updates", isOn: updater.automaticChecksBinding)
                 HStack(spacing: 10) {
                     Text(AppInfo.version)

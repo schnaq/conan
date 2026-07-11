@@ -10,6 +10,7 @@ struct MenuBarLabel: View {
     var body: some View {
         if store.isRunning {
             Text(TimeFormat.clock(store.mainElapsed(asOf: ticker.now)))
+                .monospacedDigit()
         } else {
             Image(systemName: "timer")
         }

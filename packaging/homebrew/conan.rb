@@ -6,8 +6,8 @@
 # package manager), but casks in a custom tap are namespaced — install with:
 #   brew install --cask schnaq/tap/conan
 cask "conan" do
-  version "0.3.0"
-  sha256 "8e65f3d0a713bc527cad0b8202448c0b7519532a5232a7d99592954af31dde95"
+  version "0.4.1"
+  sha256 "221ff34c01cb937f26907acaa1915cc2dcc313251d8968b129185cd5c3378bc5"
 
   url "https://github.com/schnaq/conan/releases/download/v#{version}/Conan-#{version}.dmg"
   name "Conan"

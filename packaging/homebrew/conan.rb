@@ -21,7 +21,7 @@ cask "conan" do
 
   # Conan self-updates via Sparkle; `brew upgrade` skips it unless --greedy.
   auto_updates true
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "Conan.app"
 

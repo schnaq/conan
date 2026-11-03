@@ -1,15 +1,18 @@
 import SwiftUI
 import AppKit
 import ConanCore
+import ConanMacropad
 
 /// Root of the menu-bar popover.
 struct MenuBarContentView: View {
     @EnvironmentObject private var store: SessionStore
     @EnvironmentObject private var updater: UpdaterController
+    @EnvironmentObject private var macropad: MacropadBridge
     @State private var launchAtLogin = false
     @State private var reportRange: ReportRange = .today
     @AppStorage(SessionStore.remindWhenIdleDefaultsKey) private var remindWhenIdle = false
     @AppStorage(SessionStore.hideMenuBarClockDefaultsKey) private var hideClock = false
+    @AppStorage(MacropadBridge.enabledDefaultsKey) private var macropadEnabled = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -61,6 +64,14 @@ struct MenuBarContentView: View {
                     }
                 Toggle("Hide timer in menu bar", isOn: $hideClock)
                 Toggle("Automatically check for updates", isOn: updater.automaticChecksBinding)
+                HStack {
+                    Toggle("MacroPad", isOn: $macropadEnabled)
+                        .onChange(of: macropadEnabled) { macropad.setEnabled($0) }
+                    if macropadEnabled {
+                        Text(macropad.status == .connected ? "connected" : "searching…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 HStack(spacing: 10) {
                     Text(AppInfo.version)
                         .foregroundStyle(.secondary)

@@ -154,6 +154,26 @@ In the popover footer:
   (requested when you enable it).
 - **Automatically check for updates** — Conan checks GitHub for newer releases (via Sparkle)
   and offers to install them. Use **Check for Updates…** for a manual check.
+- **MacroPad** — off by default. Turn it on to drive Conan from an
+  [Adafruit MacroPad RP2040](https://www.adafruit.com/product/5128) running the schnaqqi firmware
+  from [`schnaq/macropad`](https://github.com/schnaq/macropad) (see below). While off, Conan opens
+  no serial port and looks for no device.
+
+## MacroPad (optional)
+
+The MacroPad shows schnaqqi, who gets bored, makes coffee and finally demands attention while
+nothing is tracked, and types away while a timer runs.
+
+- **Top row:** STOP (stop everything), NEBEN (hold + project key toggles a side project at 50%;
+  holding it alone shows which project sits on which key), HEUTE (today's time per key).
+- **9 project keys:** your 9 projects with the most time in the last 28 days. A project keeps its
+  key as long as it stays in the top 9. A key starts its project with the tags you used last.
+- **Knob:** turn to pick from recent project+tag combos (while a timer runs: the running project's
+  tags), press to start or retag.
+
+The code lives in the `ConanMacropad` target, which only the app wires in; `ConanCore` knows
+nothing about the device. Conan only opens Adafruit USB serial ports (vendor `0x239A`) and talks to
+the one that answers with the firmware's hello (JSON lines, protocol v1).
 
 ## Data
 

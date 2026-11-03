@@ -10,11 +10,14 @@ let package = Package(
     targets: [
         // Pure, testable logic + watson integration. No SwiftUI app entry point here.
         .target(name: "ConanCore"),
+        // Optional Adafruit MacroPad support; only the app wires it in.
+        .target(name: "ConanMacropad", dependencies: ["ConanCore"]),
         // Menu-bar app: @main + SwiftUI views, thin shell over ConanCore.
         .executableTarget(
             name: "Conan",
             dependencies: [
                 "ConanCore",
+                "ConanMacropad",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             linkerSettings: [
@@ -25,6 +28,10 @@ let package = Package(
         .testTarget(
             name: "ConanTests",
             dependencies: ["ConanCore"]
+        ),
+        .testTarget(
+            name: "ConanMacropadTests",
+            dependencies: ["ConanMacropad", "ConanCore"]
         ),
     ],
     swiftLanguageModes: [.v5]

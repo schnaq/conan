@@ -196,6 +196,72 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertTrue(watson.adds.contains { $0.project == "y" })
     }
 
+    // MARK: - Switching and retagging the main project
+
+    func testSwitchMainFlushesOldMainKeepsSides() throws {
+        let watson = MockWatson()
+        let clock = TestClock(base)
+        let store = makeStore(watson: watson, clock: clock)
+        store.startMain(project: "x")
+        store.addSide(project: "y", percent: 0.5)
+        let sideStart = store.sideProjects.first?.intervalStart
+        clock.now = base.addingTimeInterval(3600)
+
+        store.switchMain(project: "z", tags: ["dev"])
+
+        XCTAssertEqual(store.main?.project, "z")
+        XCTAssertEqual(store.main?.tags, ["dev"])
+        XCTAssertEqual(store.main?.start, clock.now)
+        XCTAssertEqual(store.sideProjects.map(\.name), ["y"])
+        XCTAssertEqual(store.sideProjects.first?.intervalStart, sideStart, "sides keep accruing")
+        XCTAssertEqual(try watson.runningFrame()?.project, "z")
+        wait(until: { watson.adds.count == 1 }, "old main frame only")
+        XCTAssertEqual(watson.adds.first?.project, "x")
+    }
+
+    func testSwitchMainWhenIdleStarts() {
+        let store = makeStore(watson: MockWatson(), clock: TestClock(base))
+        store.switchMain(project: "z", tags: [])
+        XCTAssertEqual(store.main?.project, "z")
+    }
+
+    func testSwitchMainPromotesRunningSide() {
+        let watson = MockWatson()
+        let clock = TestClock(base)
+        let store = makeStore(watson: watson, clock: clock)
+        store.startMain(project: "x")
+        store.addSide(project: "y", percent: 0.5)
+        clock.now = base.addingTimeInterval(3600)
+
+        store.switchMain(project: "y", tags: [])
+
+        XCTAssertEqual(store.main?.project, "y")
+        XCTAssertTrue(store.sideProjects.isEmpty, "a project never runs as main and side at once")
+        wait(until: { watson.adds.count == 2 }, "side y + old main x")
+    }
+
+    func testSwitchMainSameProjectAndTagsIsNoop() {
+        let watson = MockWatson()
+        let clock = TestClock(base)
+        let store = makeStore(watson: watson, clock: clock)
+        store.startMain(project: "x", tags: ["a"])
+        clock.now = base.addingTimeInterval(60)
+        store.switchMain(project: "x", tags: ["a"])
+        XCTAssertEqual(store.main?.start, base)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertTrue(watson.adds.isEmpty)
+    }
+
+    func testRetagMainUpdatesRunningFrame() throws {
+        let watson = MockWatson()
+        let store = makeStore(watson: watson, clock: TestClock(base))
+        store.startMain(project: "x", tags: ["a"])
+        store.retagMain(["b", "c"])
+        XCTAssertEqual(store.main?.tags, ["b", "c"])
+        XCTAssertEqual(store.main?.start, base)
+        XCTAssertEqual(try watson.runningFrame()?.tags, ["b", "c"])
+    }
+
     // MARK: - Crash recovery
 
     func testRecoveryTerminalStoppedWhileDeadFlushesSidesOnly() throws {

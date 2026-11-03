@@ -63,6 +63,33 @@ public final class SessionStore: ObservableObject {
         persist()
     }
 
+    /// Make `project` the main project now. A different running main project is
+    /// closed (its frame written); side projects keep accruing. A running side
+    /// project of the same name is stopped first, so no project runs twice.
+    public func switchMain(project: String, tags: [String]) {
+        let name = project.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        guard let current = main else { return startMain(project: name, tags: tags) }
+        guard current.project != name || current.tags != tags else { return }
+        if let side = sideProjects.first(where: { $0.name == name }) { stopSide(side.id) }
+        let now = clock()
+        let commands = Accrual.flushCommands(main: current, sides: [], at: now)
+        let session = MainSession(project: name, start: now, tags: tags)
+        main = session
+        syncRunningFrame(session)
+        persist()
+        run(commands)
+    }
+
+    /// Change the tags of the running main session (its frame is still open).
+    public func retagMain(_ tags: [String]) {
+        guard var session = main else { return }
+        session.tags = tags
+        main = session
+        syncRunningFrame(session)
+        persist()
+    }
+
     /// Stop the main project and every side project at once. Remembers the
     /// stopped setup so "Resume all" can restart it.
     public func stopAll() {

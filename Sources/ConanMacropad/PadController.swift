@@ -2,13 +2,14 @@ import Foundation
 import ConanCore
 
 /// Turns MacroPad input into SessionStore actions and the store's state into what
-/// the MacroPad shows. Hardware keys: 0 STOP, 1 NEBEN, 2 HEUTE, 3–11 project keys P1–P9.
+/// the MacroPad shows. Hardware keys: 0 STOP (back while the list is open), 1 NEBEN, 2 HEUTE,
+/// 3–11 project keys P1–P9. Knob: turn opens/moves the list, press picks.
 @MainActor
 final class PadController {
     static let slotsKey = "conan.macropad.slots"
     static let sidePercent = 0.5
     // Calibration knobs: seconds.
-    static let listTimeout: TimeInterval = 3
+    static let listTimeout: TimeInterval = 20 // long enough to read scrolling rows
     static let gridTimeout: TimeInterval = 5
     static let noteTimeout: TimeInterval = 2
     static let blinkFor: TimeInterval = 1
@@ -54,8 +55,8 @@ final class PadController {
             guard n < slots.count, let project = slots[n] else { return }
             nebenDown ? toggleSide(project, now: now) : startMain(project, now: now)
         case .stop:
-            store.stopAll()
-            list = []
+            // While the list is open, STOP is "back": close it, keep the timer running.
+            if listIsOpen(now) { list = [] } else { store.stopAll() }
         case .neben(let down):
             nebenDown = down
         case .today(let down):

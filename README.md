@@ -169,7 +169,8 @@ nothing is tracked, and types away while a timer runs.
 - **9 project keys:** your 9 projects with the most time in the last 28 days. A project keeps its
   key as long as it stays in the top 9. A key starts its project with the tags you used last.
 - **Knob:** turn to pick from recent project+tag combos (while a timer runs: the running project's
-  tags), press to start or retag.
+  tags); the selected row scrolls when it is too long. Press to start or retag; STOP closes the list
+  without stopping anything (it closes by itself after 20 s).
 
 The code lives in the `ConanMacropad` target, which only the app wires in; `ConanCore` knows
 nothing about the device. Conan only opens Adafruit USB serial ports (vendor `0x239A`) and talks to

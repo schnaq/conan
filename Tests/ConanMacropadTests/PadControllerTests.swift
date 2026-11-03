@@ -146,10 +146,22 @@ final class PadControllerTests: XCTestCase {
         XCTAssertEqual(store.main?.start, base)
     }
 
-    func testListClosesAfterThreeSeconds() {
+    func testListStaysOpenLongEnoughToRead() {
         pad.handle(.encoder(1))
-        now = base.addingTimeInterval(3)
+        now = base.addingTimeInterval(19)
+        XCTAssertEqual(pad.state().view, "list")
+        now = base.addingTimeInterval(20)
         XCTAssertEqual(pad.state().view, "main")
+    }
+
+    func testStopClosesAnOpenListWithoutStoppingTheTimer() {
+        pad.handle(.key(0))
+        pad.handle(.encoder(1))
+        pad.handle(.stop)
+        XCTAssertEqual(store.main?.project, "kunde-a")
+        XCTAssertEqual(pad.state().view, "main")
+        pad.handle(.stop) // list closed: STOP stops everything again
+        XCTAssertNil(store.main)
     }
 
     func testTodayShowsGridWhileHeldAndFiveSecondsAfterShortPress() {

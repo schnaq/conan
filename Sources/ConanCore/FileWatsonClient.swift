@@ -86,6 +86,11 @@ public final class FileWatsonClient: WatsonClient, @unchecked Sendable {
         return try report(from: week.start, to: week.end)
     }
 
+    public func projectTotals(since: Date) throws -> [String: TimeInterval] {
+        let report = try report(from: since, to: now())
+        return Dictionary(uniqueKeysWithValues: report.projects.map { ($0.name, $0.time) })
+    }
+
     /// Watson-style clip-and-sum aggregation over an arbitrary
     /// `[rangeStart, rangeEnd)` window: each frame is clipped to the range and
     /// the clipped duration summed per project (and per tag).

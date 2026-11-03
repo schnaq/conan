@@ -32,6 +32,19 @@ final class FileWatsonClientTests: XCTestCase {
             .write(to: tempDir.appendingPathComponent("frames"))
     }
 
+    func testProjectTotalsClipsToRange() throws {
+        let since = now.addingTimeInterval(-28 * 86_400)
+        let s = since.timeIntervalSince1970
+        try writeRawFrames([
+            [s + 86_400, s + 86_400 + 3600, "inside", "id1", [], s],          // fully inside: 3600
+            [s - 1800, s + 1800, "straddle", "id2", [], s],                    // half before since: 1800
+            [s - 10 * 86_400, s - 9 * 86_400, "old", "id3", [], s],            // before since: absent
+            [s + 2 * 86_400, s + 2 * 86_400 + 600, "inside", "id4", ["x"], s], // second frame: +600
+        ])
+        let totals = try makeClient().projectTotals(since: since)
+        XCTAssertEqual(totals, ["inside": 4200, "straddle": 1800])
+    }
+
     func testAddAndReportRoundTrip() throws {
         let client = makeClient()
         let start = dayStart.addingTimeInterval(9 * 3600)

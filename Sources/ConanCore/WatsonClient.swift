@@ -23,4 +23,11 @@ public protocol WatsonClient: Sendable {
     /// epoch (used to pin side accrual when `watson stop` closed the main frame).
     /// Nil when no matching frame exists.
     func stopTime(project: String, startEpoch: Int) throws -> Date?
+
+    /// Tracked seconds per project from `since` until now (frames clipped to the range).
+    func projectTotals(since: Date) throws -> [String: TimeInterval]
+}
+
+public extension WatsonClient {
+    func projectTotals(since: Date) throws -> [String: TimeInterval] { [:] }
 }

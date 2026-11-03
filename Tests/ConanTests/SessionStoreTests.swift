@@ -9,6 +9,8 @@ private final class MockWatson: WatsonClient, @unchecked Sendable {
     private var _adds: [WatsonAddCommand] = []
     /// Stub for `stopTime`; when nil, callers fall back to their default stop.
     var stubStopTime: Date?
+    var stubTotals: [String: TimeInterval] = [:]
+    private(set) var totalsSince: Date?
 
     init(state: WatsonRunningFrame? = nil) { _state = state }
 
@@ -49,6 +51,11 @@ private final class MockWatson: WatsonClient, @unchecked Sendable {
     }
 
     func stopTime(project: String, startEpoch: Int) throws -> Date? { stubStopTime }
+
+    func projectTotals(since: Date) throws -> [String: TimeInterval] {
+        lock.lock(); totalsSince = since; lock.unlock()
+        return stubTotals
+    }
 }
 
 /// Mutable clock the tests advance by hand.
@@ -93,6 +100,18 @@ final class SessionStoreTests: XCTestCase {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
         try encoder.encode(state).write(to: tempStateURL)
+    }
+
+    // MARK: - Recent project totals
+
+    func testRefreshProjectsPublishesRecentTotals() {
+        let watson = MockWatson()
+        watson.stubTotals = ["alpha": 7200, "beta": 60]
+        let clock = TestClock(base)
+        let store = makeStore(watson: watson, clock: clock)
+        store.refreshProjects()
+        wait(until: { store.recentTotals == ["alpha": 7200, "beta": 60] })
+        XCTAssertEqual(watson.totalsSince, base.addingTimeInterval(-28 * 86_400))
     }
 
     // MARK: - Steady-state reconcile

@@ -13,6 +13,7 @@ final class PadController {
     static let gridTimeout: TimeInterval = 5
     static let noteTimeout: TimeInterval = 2
     static let blinkFor: TimeInterval = 1
+    static let stopGrace: TimeInterval = 2 // the pad may show a timed-out list until the next send
 
     private enum LED {
         static let off = "000000", function = "101010", main = "00ff00", side = "ff8800", alert = "ff0000"
@@ -44,12 +45,21 @@ final class PadController {
 
     // MARK: - Input
 
+    /// Forgets held keys and open views, e.g. after a reconnect (a release may have been lost).
+    func reset() {
+        nebenDown = false
+        todayDown = false
+        gridUntil = nil
+        list = []
+    }
+
     func handle(_ event: PadEvent) {
         let now = clock()
         switch event {
         case .hello:
             break
         case .key(let n):
+            list = []
             guard n < slots.count, let project = slots[n] else { return }
             if nebenDown {
                 toggleSide(project, now: now)
@@ -58,7 +68,12 @@ final class PadController {
             }
         case .stop:
             // While the list is open, STOP is "back": close it, keep the timer running.
-            if listIsOpen(now) { list = [] } else { store.stopAll() }
+            // A just-expired list still counts: the pad may show it until the next send.
+            if !list.isEmpty && Self.active(listUntil?.addingTimeInterval(Self.stopGrace), now) {
+                list = []
+            } else {
+                store.stopAll()
+            }
         case .neben(let down):
             nebenDown = down
         case .today(let down):
@@ -68,7 +83,7 @@ final class PadController {
                 store.refreshReport() // fresh times for the grid
             }
         case .encoder(let delta):
-            if list.isEmpty { list = listOptions(); selection = 0 }
+            if !listIsOpen(now) { list = listOptions(); selection = 0 }
             guard !list.isEmpty else { return }
             selection = min(max(selection + delta, 0), list.count - 1)
             listUntil = now.addingTimeInterval(Self.listTimeout)
@@ -127,7 +142,6 @@ final class PadController {
     func state() -> PadState {
         let now = clock()
         refreshSlots()
-        if !listIsOpen(now) { list = [] }
         let mood = moods.tick(now: now, idleSeconds: idleSeconds(), isRunning: store.isRunning, startedAt: store.main?.start)
 
         var state = PadState()
@@ -141,14 +155,14 @@ final class PadController {
             state.sub = main.tags.map { "+\($0)" }.joined(separator: " ")
             state.time = TimeFormat.clockSeconds(elapsed)
             state.note = mood == .sleep
-                ? "läuft noch \(TimeFormat.clock(elapsed))"
+                ? "läuft \(TimeFormat.clock(elapsed))"
                 : (store.sideProjects.isEmpty ? "" : "+\(store.sideProjects.count) neben")
         } else if mood == .demand || mood == .alert {
             state.note = "nix läuft?!"
         }
         if let note, now < note.until { state.note = note.text }
 
-        if !list.isEmpty {
+        if listIsOpen(now) {
             state.view = "list"
             state.list = list.map(\.display)
             state.sel = selection
@@ -185,6 +199,8 @@ final class PadController {
 
     /// Re-ranks the key slots (stable: a project keeps its key while it stays in the top 9).
     private func refreshSlots() {
+        // Empty totals mean "not loaded yet" (or a read error): keep the remembered layout.
+        guard !store.recentTotals.isEmpty else { return }
         let assigned = SlotAssigner.assign(previous: slots, totals: store.recentTotals)
         guard assigned != slots else { return }
         slots = assigned

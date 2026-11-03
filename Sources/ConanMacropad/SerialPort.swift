@@ -8,6 +8,8 @@ final class SerialPort {
     private let fd: Int32
     private let source: DispatchSourceRead
     private var closed = false
+    private var pending = Data() // bytes a full tty buffer did not take yet
+    private static let maxPending = 4096
 
     init?(path: String) {
         let fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK)
@@ -28,10 +30,18 @@ final class SerialPort {
 
     deinit { close() }
 
+    /// Writes what the tty takes now and keeps the rest for the next call, so lines stay whole.
+    /// If the device stops reading, the backlog is dropped (the firmware discards the cut line).
     func write(_ data: Data) {
         guard !closed else { return }
-        let written = data.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
-        if written < 0 && errno != EAGAIN && errno != EINTR { close() }
+        pending.append(data)
+        if pending.count > Self.maxPending { pending = data }
+        let written = pending.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
+        if written > 0 {
+            pending.removeFirst(written)
+        } else if written < 0 && errno != EAGAIN && errno != EINTR {
+            close()
+        }
     }
 
     func close() {

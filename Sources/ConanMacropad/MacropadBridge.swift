@@ -85,6 +85,7 @@ public final class MacropadBridge: ObservableObject {
         closeProbes()
         port = probe
         buffer = LineBuffer()
+        controller.reset() // a key release may have been lost while disconnected
         status = .connected
         probe.onData = { [weak self] data in
             MainActor.assumeIsolated { self?.received(data) }

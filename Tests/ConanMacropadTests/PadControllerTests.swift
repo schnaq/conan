@@ -232,8 +232,49 @@ final class PadControllerTests: XCTestCase {
         idle = 200
         let state = pad.state()
         XCTAssertEqual(state.mood, "sleep")
-        XCTAssertEqual(state.note, "läuft noch 01:00")
+        XCTAssertEqual(state.note, "läuft 01:00") // fits the 13 characters beside schnaqqi
         XCTAssertEqual(state.leds, Array(repeating: "000000", count: 12))
+    }
+
+    func testSlotsSurviveARestartBeforeTotalsLoad() {
+        // A fresh controller (Conan restarted) sees empty totals until refreshProjects lands.
+        let emptyStore = SessionStore(watson: nil, stateURL: stateURL, clock: { [unowned self] in self.now })
+        let restarted = PadController(store: emptyStore, defaults: defaults, clock: { [unowned self] in self.now }, idleSeconds: { 0 })
+        _ = restarted.state()
+        XCTAssertEqual(restarted.slots.prefix(3), ["kunde-a", "schnaq", "sales"])
+        XCTAssertEqual(defaults.stringArray(forKey: PadController.slotsKey)?.prefix(3), ["kunde-a", "schnaq", "sales"])
+    }
+
+    func testStopRightAfterTheListTimedOutStillMeansBack() {
+        pad.handle(.key(0))
+        pad.handle(.encoder(1))
+        now = base.addingTimeInterval(20.5) // timed out, but the pad may still show it
+        pad.handle(.stop)
+        XCTAssertEqual(store.main?.project, "kunde-a")
+    }
+
+    func testTurningAfterTimeoutRebuildsTheList() {
+        pad.handle(.encoder(1))
+        pad.handle(.key(1)) // start schnaq; the old list must not survive
+        pad.handle(.encoder(1))
+        XCTAssertEqual(pad.state().list, ["schnaq +intern"])
+    }
+
+    func testKeyPressClosesTheList() {
+        pad.handle(.encoder(1))
+        pad.handle(.key(1))
+        XCTAssertEqual(pad.state().view, "main")
+        pad.handle(.press) // must not switch back to the old list's selection
+        XCTAssertEqual(store.main?.project, "schnaq")
+    }
+
+    func testResetReleasesHeldKeys() {
+        pad.handle(.key(0))
+        pad.handle(.neben(down: true)) // release lost while unplugged
+        pad.reset()
+        pad.handle(.key(1))
+        XCTAssertEqual(store.main?.project, "schnaq", "key switches main again instead of toggling a side")
+        XCTAssertEqual(pad.state().view, "main")
     }
 
     func testStopStopsEverything() {

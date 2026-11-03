@@ -25,15 +25,13 @@ final class PadController {
     private var moods = MoodTracker()
 
     private(set) var slots: [String?]
-    private var rankedFrom: [String: TimeInterval]?
     private var nebenDown = false
     private var todayDown = false
     private var gridUntil: Date?
     private var list: [ProjectTags] = []
     private var selection = 0
     private var listUntil: Date?
-    private var note = ""
-    private var noteUntil: Date?
+    private var note: (text: String, until: Date)?
     private var blinkUntil: Date?
 
     init(store: SessionStore, defaults: UserDefaults, clock: @escaping () -> Date, idleSeconds: @escaping () -> TimeInterval) {
@@ -53,7 +51,11 @@ final class PadController {
             break
         case .key(let n):
             guard n < slots.count, let project = slots[n] else { return }
-            nebenDown ? toggleSide(project, now: now) : startMain(project, now: now)
+            if nebenDown {
+                toggleSide(project, now: now)
+            } else if store.main?.project != project {
+                startMain(project, tags: lastTags(of: project), now: now)
+            }
         case .stop:
             // While the list is open, STOP is "back": close it, keep the timer running.
             if listIsOpen(now) { list = [] } else { store.stopAll() }
@@ -61,7 +63,10 @@ final class PadController {
             nebenDown = down
         case .today(let down):
             todayDown = down
-            if down { gridUntil = now.addingTimeInterval(Self.gridTimeout) }
+            if down {
+                gridUntil = now.addingTimeInterval(Self.gridTimeout)
+                store.refreshReport() // fresh times for the grid
+            }
         case .encoder(let delta):
             if list.isEmpty { list = listOptions(); selection = 0 }
             guard !list.isEmpty else { return }
@@ -79,9 +84,8 @@ final class PadController {
         }
     }
 
-    private func startMain(_ project: String, tags: [String]? = nil, now: Date) {
-        guard store.main?.project != project || tags != nil else { return }
-        store.switchMain(project: project, tags: tags ?? lastTags(of: project))
+    private func startMain(_ project: String, tags: [String], now: Date) {
+        store.switchMain(project: project, tags: tags)
         blinkUntil = now.addingTimeInterval(Self.blinkFor)
     }
 
@@ -96,8 +100,11 @@ final class PadController {
     }
 
     private func show(_ text: String, now: Date) {
-        note = text
-        noteUntil = now.addingTimeInterval(Self.noteTimeout)
+        note = (text, now.addingTimeInterval(Self.noteTimeout))
+    }
+
+    private static func active(_ until: Date?, _ now: Date) -> Bool {
+        until.map { now < $0 } ?? false
     }
 
     private func lastTags(of project: String) -> [String] {
@@ -112,7 +119,7 @@ final class PadController {
     }
 
     private func listIsOpen(_ now: Date) -> Bool {
-        !list.isEmpty && (listUntil.map { now < $0 } ?? false)
+        !list.isEmpty && Self.active(listUntil, now)
     }
 
     // MARK: - Output
@@ -126,26 +133,26 @@ final class PadController {
         var state = PadState()
         state.mood = mood.rawValue
         state.leds = leds(for: mood)
-        state.fx = blinkUntil.map { now < $0 } == true ? "blink" : (mood == .demand || mood == .alert ? "pulse" : "none")
+        state.fx = Self.active(blinkUntil, now) ? "blink" : (mood == .demand || mood == .alert ? "pulse" : "none")
 
         if let main = store.main {
             let elapsed = store.mainElapsed(asOf: now)
             state.title = main.project
             state.sub = main.tags.map { "+\($0)" }.joined(separator: " ")
-            state.time = Self.hms(elapsed)
+            state.time = TimeFormat.clockSeconds(elapsed)
             state.note = mood == .sleep
                 ? "läuft noch \(TimeFormat.clock(elapsed))"
                 : (store.sideProjects.isEmpty ? "" : "+\(store.sideProjects.count) neben")
         } else if mood == .demand || mood == .alert {
             state.note = "nix läuft?!"
         }
-        if noteUntil.map({ now < $0 }) == true { state.note = note }
+        if let note, now < note.until { state.note = note.text }
 
         if !list.isEmpty {
             state.view = "list"
             state.list = list.map(\.display)
             state.sel = selection
-        } else if nebenDown || todayDown || gridUntil.map({ now < $0 }) == true {
+        } else if nebenDown || todayDown || Self.active(gridUntil, now) {
             state.view = "grid"
             state.grid = slots.map { project in
                 project.map { [$0, nebenDown && !todayDown ? "" : TimeFormat.clock(todaySeconds(of: $0, now: now))] }
@@ -176,16 +183,11 @@ final class PadController {
         return committed + (store.main?.project == project ? store.mainElapsed(asOf: now) : 0)
     }
 
-    /// Re-ranks the key slots whenever Conan's 28-day totals change.
+    /// Re-ranks the key slots (stable: a project keeps its key while it stays in the top 9).
     private func refreshSlots() {
-        guard rankedFrom != store.recentTotals else { return }
-        rankedFrom = store.recentTotals
-        slots = SlotAssigner.assign(previous: slots, totals: store.recentTotals)
+        let assigned = SlotAssigner.assign(previous: slots, totals: store.recentTotals)
+        guard assigned != slots else { return }
+        slots = assigned
         defaults.set(slots.map { $0 ?? "" }, forKey: Self.slotsKey)
-    }
-
-    private static func hms(_ seconds: TimeInterval) -> String {
-        let total = max(0, Int(seconds))
-        return String(format: "%d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60)
     }
 }

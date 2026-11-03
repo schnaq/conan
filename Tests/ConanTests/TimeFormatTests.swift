@@ -15,6 +15,11 @@ final class TimeFormatTests: XCTestCase {
         XCTAssertEqual(TimeFormat.clock(3661), "01:01")
     }
 
+    func testClockSecondsShowsHoursMinutesSeconds() {
+        XCTAssertEqual(TimeFormat.clockSeconds(3725), "1:02:05")
+        XCTAssertEqual(TimeFormat.clockSeconds(-1), "0:00:00")
+    }
+
     func testClockNegativeClampsToZero() {
         XCTAssertEqual(TimeFormat.clock(-5), "00:00")
     }

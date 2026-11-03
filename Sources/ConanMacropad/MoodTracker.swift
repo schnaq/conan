@@ -1,4 +1,5 @@
 import Foundation
+import ConanCore
 
 /// schnaqqi's mood on the MacroPad (names match the sprite sheets in schnaq/assets).
 enum Mood: String {
@@ -9,7 +10,7 @@ enum Mood: String {
 /// stepping away or starting a timer resets that streak.
 struct MoodTracker {
     // Calibration knobs: seconds.
-    static let awayAfter: TimeInterval = 120
+    static let awayAfter = IdleReminder().idleResetThreshold
     static let startShownFor: TimeInterval = 2
     static let coffeeAfter: TimeInterval = 120
     static let demandAfter: TimeInterval = 300

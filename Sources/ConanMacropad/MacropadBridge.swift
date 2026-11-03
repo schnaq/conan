@@ -117,7 +117,6 @@ public final class MacropadBridge: ObservableObject {
     private func received(_ data: Data) {
         for line in buffer.append(data) {
             guard let event = PadEvent.decode(line) else { continue }
-            if event == .today(down: true) { store.refreshReport() }
             controller.handle(event)
         }
         send()

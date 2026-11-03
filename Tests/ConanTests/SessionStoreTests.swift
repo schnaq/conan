@@ -111,7 +111,7 @@ final class SessionStoreTests: XCTestCase {
         let store = makeStore(watson: watson, clock: clock)
         store.refreshProjects()
         wait(until: { store.recentTotals == ["alpha": 7200, "beta": 60] })
-        XCTAssertEqual(watson.totalsSince, base.addingTimeInterval(-28 * 86_400))
+        XCTAssertEqual(watson.totalsSince, base.addingTimeInterval(-SessionStore.totalsWindow))
     }
 
     // MARK: - Steady-state reconcile

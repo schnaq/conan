@@ -15,8 +15,9 @@ public final class SessionStore: ObservableObject {
     @Published public private(set) var weekOffset: Int = 0
     @Published public private(set) var projects: [String] = []
     @Published public private(set) var recentCombos: [ProjectTags] = []
-    /// Tracked seconds per project over the last 28 days (for ranking projects).
+    /// Tracked seconds per project over the last `totalsWindow` (for ranking projects).
     @Published public private(set) var recentTotals: [String: TimeInterval] = [:]
+    public static let totalsWindow: TimeInterval = 28 * 86_400
     @Published public private(set) var lastError: String?
 
     public let watsonAvailable: Bool
@@ -262,7 +263,7 @@ public final class SessionStore: ObservableObject {
 
     public func refreshProjects() {
         guard let watson else { return }
-        let since = clock().addingTimeInterval(-28 * 86_400)
+        let since = clock().addingTimeInterval(-Self.totalsWindow)
         Task.detached { [weak self] in
             let names = (try? watson.projects()) ?? []
             let frames = (try? watson.recentLog()) ?? []

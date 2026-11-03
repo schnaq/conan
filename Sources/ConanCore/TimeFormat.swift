@@ -9,6 +9,12 @@ public enum TimeFormat {
         return String(format: "%02d:%02d", hours, minutes)
     }
 
+    /// "h:mm:ss" (e.g. "1:02:05") for a running timer.
+    public static func clockSeconds(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        return String(format: "%d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60)
+    }
+
     /// Compact "1h 23m" / "23m" / "45s" for the report.
     public static func human(_ seconds: TimeInterval) -> String {
         let total = max(0, Int(seconds.rounded()))

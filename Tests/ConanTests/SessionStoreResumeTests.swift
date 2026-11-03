@@ -19,6 +19,9 @@ private final class StateOnlyMockWatson: WatsonClient, @unchecked Sendable {
     func reportDay() throws -> WatsonReport {
         WatsonReport(projects: [], time: 0, timespan: .init(from: "", to: ""))
     }
+    func reportWeek(containing reference: Date) throws -> WatsonReport {
+        WatsonReport(projects: [], time: 0, timespan: .init(from: "", to: ""))
+    }
 
     func runningFrame() throws -> WatsonRunningFrame? {
         lock.lock(); defer { lock.unlock() }; return state
